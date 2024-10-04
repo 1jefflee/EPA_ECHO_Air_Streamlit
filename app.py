@@ -27,47 +27,73 @@ col1, col2 = st.columns([1, 1])
 with col1:
     st.subheader("Select Data Filters")
 
-    # Get unique program options from the dataset
-    available_programs = df['PGM_SYS_ACRNM'].unique()
-    default_program_index = list(available_programs).index('E-GGRT') if 'E-GGRT' in available_programs else 0
-    selected_program = st.selectbox('Select Program', sorted(available_programs), index=default_program_index)
+    # Row 1: Program and Pollutant Selectors in the same row
+    col_prog, col_pollutant = st.columns(2)
+    with col_prog:
+        available_programs = df['PGM_SYS_ACRNM'].unique()
+        default_program_index = list(available_programs).index('E-GGRT') if 'E-GGRT' in available_programs else 0
+        selected_program = st.selectbox('Select Program', sorted(available_programs), index=default_program_index)
 
-    # Filter the data by the selected program
-    df_program_filtered = df[df['PGM_SYS_ACRNM'] == selected_program]
+        df_filtered = df[df['PGM_SYS_ACRNM'] == selected_program]
+    
+    with col_pollutant:
+        available_pollutants = df_filtered['POLLUTANT_NAME'].unique()
+        pollutant_options = ['All'] + sorted(available_pollutants)
+        selected_pollutant = st.selectbox('Select Pollutant Name', pollutant_options)
 
-    # Get unique pollutant options and add "All" option
-    available_pollutants = df_program_filtered['POLLUTANT_NAME'].unique()
-    pollutant_options = ['All'] + sorted(available_pollutants)
-    selected_pollutant = st.selectbox('Select Pollutant Name', pollutant_options)
+        # Filter data by pollutant
+        df_filtered = df_filtered if selected_pollutant == 'All' else df_filtered[df_filtered['POLLUTANT_NAME'] == selected_pollutant]
+        unit_of_measure = df_filtered['UNIT_OF_MEASURE'].iloc[0]
 
-    # Filter data by pollutant
-    df_pollutant_filtered = df_program_filtered if selected_pollutant == 'All' else df_program_filtered[df_program_filtered['POLLUTANT_NAME'] == selected_pollutant]
+    # Row 2: State and City Selectors in the same row
+    col_state, col_city = st.columns(2)
+    with col_state:
+        non_continental_states = ['HI', 'AK', 'GU', 'VI', 'AS', 'MP', 'PR']
+        continental_states = [state for state in df['STATE_CODE'].unique() if state not in non_continental_states]
+        continental_states.sort()
+        state_options = ['Continental US'] + continental_states
+        selected_state = st.selectbox('Select State Code', state_options, index=state_options.index('TX'))
 
-    # Get the unit of measure for the selected pollutant
-    unit_of_measure = df_pollutant_filtered['UNIT_OF_MEASURE'].iloc[0]
+       # Filter data by state or "Continental US"
+        df_filtered = df_filtered[df_filtered['STATE_CODE'].isin(continental_states)] if selected_state == 'Continental US' else df_filtered[df_filtered['STATE_CODE'] == selected_state]
 
-    # Define non-continental US states and territories
-    non_continental_states = ['HI', 'AK', 'GU', 'VI', 'AS', 'MP', 'PR']
-    continental_states = [state for state in df['STATE_CODE'].unique() if state not in non_continental_states]
-    continental_states.sort()
+    with col_city:
+        # Check if a specific state is selected and not "Continental US"
+        if selected_state != 'Continental US' and selected_state:
+            # Get unique city options for the selected state and add "All" option
+            available_cities = df_filtered['CITY_NAME'].unique()
+            city_options = ['All'] + sorted(available_cities)
+        else:
+            # If no state is selected or "Continental US", only show 'All'
+            city_options = ['All']
+        
+        selected_city = st.selectbox('Select City', city_options)
 
-    # Add "Continental US" as an option for state selection
-    state_options = ['Continental US'] + continental_states
-    selected_state = st.selectbox('Select State Code', state_options, index=state_options.index('TX'))
+        # Filter data by city if a specific city is selected, otherwise keep all cities
+        df_filtered = df_filtered if selected_city == 'All' else df_filtered[df_filtered['CITY_NAME'] == selected_city]
 
-    # Filter data by state or "Continental US"
-    df_filtered = df_pollutant_filtered[df_pollutant_filtered['STATE_CODE'].isin(continental_states)] if selected_state == 'Continental US' else df_pollutant_filtered[df_pollutant_filtered['STATE_CODE'] == selected_state]
+        # Create display name for selected city and state
+        selected_location = None
+        if selected_city != 'All':
+            selected_location = f"{selected_city}, "
+        else:
+            selected_location = ''
+        
+        selected_location = f"{selected_location}{selected_state}"
 
-    # Dropdown for year selection
-    years = df_filtered['REPORTING_YEAR'].unique()
-    selected_year = st.selectbox('Select Reporting Year', sorted(years))
+    # Row 3: Year and Top Facilities Selectors in the same row
+    col_year, col_top = st.columns(2)
+    with col_year:
+        years = df_filtered['REPORTING_YEAR'].unique()
+        selected_year = st.selectbox('Select Reporting Year', sorted(years, reverse=True))
 
-    # Filter the data by selected year
-    df_filtered_year = df_filtered[df_filtered['REPORTING_YEAR'] == selected_year]
-
-    # Dropdown for Top XX facilities
-    top_facilities = [5, 10, 25, 50, 100]
-    selected_top = st.selectbox('Select Top Facilities', top_facilities, index=top_facilities.index(10))
+        # Filter the data by selected year
+        df_filtered_year = df_filtered[df_filtered['REPORTING_YEAR'] == selected_year]
+    
+    with col_top:
+        # Dropdown for Top XX facilities
+        top_facilities = [5, 10, 25, 50, 100]
+        selected_top = st.selectbox('Select Top Facilities', top_facilities, index=top_facilities.index(10))
 
     # Group by key columns and sum emissions for the selected year
     df_grouped = df_filtered_year.groupby(
@@ -87,8 +113,15 @@ with col1:
     # Calculate the percentage of top XX emissions relative to total state emissions for the selected year
     proportion_from_top = (top_emissions_total / total_state_emissions * 100).round(1) if total_state_emissions > 0 else 0
 
-    # Now rerun annual emissions by year for the original top XX facilities across all years, for the selected program
-    df_top_all_years = df[(df['REGISTRY_ID'].isin(top_registry_ids)) & (df['PGM_SYS_ACRNM'] == selected_program)]
+    # Now rerun annual emissions by year for the original top XX facilities across all years, for the selected program and pollutant (if chosen)
+    if selected_pollutant == 'All':
+        # If 'All' pollutants are selected, do not filter by pollutant
+        df_top_all_years = df[(df['REGISTRY_ID'].isin(top_registry_ids)) & (df['PGM_SYS_ACRNM'] == selected_program)]
+    else:
+        # Filter by the selected pollutant
+        df_top_all_years = df[(df['REGISTRY_ID'].isin(top_registry_ids)) &
+                            (df['PGM_SYS_ACRNM'] == selected_program) &
+                            (df['POLLUTANT_NAME'] == selected_pollutant)]
 
     # Group by REPORTING_YEAR and sum emissions for the Top XX facilities across all years (rounding sum)
     df_top_emissions_by_year = df_top_all_years.groupby('REPORTING_YEAR').agg({'ANNUAL_EMISSION': 'sum'}).reset_index()
@@ -99,7 +132,16 @@ with col1:
     df_state_totals_by_year['ANNUAL_EMISSION'] = df_state_totals_by_year['ANNUAL_EMISSION'].round(1)
 
     # Merge state totals with top XX facilities totals for a combined chart
-    df_combined = pd.merge(df_state_totals_by_year, df_top_emissions_by_year, on='REPORTING_YEAR', how='left', suffixes=('_State', f'_Top{selected_top}'))
+    #suffix depending on city or state or US
+    if selected_city != 'All':
+        suffix = f"_{selected_city}"
+    elif selected_state != 'Continental US':
+        suffix = f"_{selected_state}"
+    elif selected_state == 'Continental US':
+        suffix = "_US"
+    else:
+        suffix = ''
+    df_combined = pd.merge(df_state_totals_by_year, df_top_emissions_by_year, on='REPORTING_YEAR', how='left', suffixes=(suffix, f'_Top{selected_top}'))
     df_combined.fillna(0, inplace=True)
 
     # Ensure 'ANNUAL_EMISSION' is numeric and drop any NaN values for Lorenz Curve calculation
@@ -121,7 +163,7 @@ with col2:
     st.subheader("Summary Statistics")
 
     # Display Annual Emissions Information
-    st.write(f"Total Emissions for '{selected_state}': {total_state_emissions:,} {unit_of_measure}")
+    st.write(f"Total Emissions for '{selected_location}' ({selected_year}): {total_state_emissions:,} {unit_of_measure}")
     st.write(f"Total Reporting Facilities: {total_reporting_facilities}")
     st.write(f"Total Emissions for the Top {selected_top} Facilities: {top_emissions_total:,} {unit_of_measure}")
     st.write(f"Proportion of Total Emissions from Top {selected_top} Facilities: {proportion_from_top:.1f}%")
@@ -134,12 +176,17 @@ with col3:
         # Round ANNUAL_EMISSION to 1 decimal point and add commas
         df_top['ANNUAL_EMISSION'] = df_top['ANNUAL_EMISSION'].map(lambda x: f"{x:,.1f}")
         
-        df_display = df_top[['PRIMARY_NAME', 'ANNUAL_EMISSION', 'CITY_NAME', 'STATE_CODE', 'POSTAL_CODE', 'LATITUDE83', 'LONGITUDE83']]
+        # Add the top 3 pollutants as a column list
+        df_top['Top Pollutants'] = df_top['REGISTRY_ID'].apply(
+            lambda x: df[(df['REGISTRY_ID'] == x) & (df['PGM_SYS_ACRNM'] == selected_program)]['POLLUTANT_NAME'].head(3).tolist()
+        )
+
+        df_display = df_top[['PRIMARY_NAME', 'ANNUAL_EMISSION', 'CITY_NAME', 'STATE_CODE', 'Top Pollutants']]
         
-        st.subheader(f"Top {selected_top} Facilities for {selected_year} in {selected_state}")
+        st.subheader(f"Top {selected_top} Facilities for {selected_year} in {selected_location} ({unit_of_measure})")
         st.dataframe(df_display.style.hide(axis="index"))
     else:
-        st.warning(f"No data available for {selected_year} in {selected_state} for the {selected_program} program.")
+        st.warning(f"No data available for {selected_year} in {selected_location} for the {selected_program} program.")
 
 with col4:
     st.subheader("Location of Top Facilities")
@@ -176,11 +223,11 @@ col5, col6 = st.columns([1, 1])
 
 with col5:
     if not df_combined.empty:
-        st.subheader(f"Annual Emissions ({unit_of_measure}): {selected_state} vs Top {selected_top} Facilities")
+        st.subheader(f"Annual Emissions ({unit_of_measure}): {selected_location} vs Top {selected_top} Facilities")
         st.line_chart(df_combined.set_index('REPORTING_YEAR'))
 
     else:
-        st.warning(f"No emission data found for {selected_state}.")
+        st.warning(f"No emission data found for {selected_location}.")
 
 with col6:
     st.subheader("Emissions Distribution Curve")
