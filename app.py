@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+import zipfile
 import streamlit as st
 import pydeck as pdk
 import matplotlib.pyplot as plt
@@ -10,8 +11,13 @@ st.set_page_config(layout="wide")
 st.title("Echo Air Emissions Data")
 
 # Load filtered echo air emissions data
-poll_rpt_combined_emissions = 'data/filtered_echo_data.csv'
-df = pd.read_csv(poll_rpt_combined_emissions, low_memory=False)
+zip_file_path = 'data/filtered_echo_data.zip'
+csv_file_name = 'filtered_echo_data.csv'  # Name of the CSV inside the zip
+
+# Open the zip file and load the CSV
+with zipfile.ZipFile(zip_file_path, 'r') as z:
+    with z.open(csv_file_name) as f:
+        df = pd.read_csv(f, low_memory=False)
 
 # Clean up the data
 df.columns = df.columns.str.strip()
@@ -35,7 +41,7 @@ with col1:
         selected_program = st.selectbox('Select Program', sorted(available_programs), index=default_program_index)
 
         df_filtered = df[df['PGM_SYS_ACRNM'] == selected_program]
-    
+
     with col_pollutant:
         available_pollutants = df_filtered['POLLUTANT_NAME'].unique()
         pollutant_options = ['All'] + sorted(available_pollutants)
@@ -66,7 +72,7 @@ with col1:
         else:
             # If no state is selected or "Continental US", only show 'All'
             city_options = ['All']
-        
+
         selected_city = st.selectbox('Select City', city_options)
 
         # Filter data by city if a specific city is selected, otherwise keep all cities
@@ -78,7 +84,7 @@ with col1:
             selected_location = f"{selected_city}, "
         else:
             selected_location = ''
-        
+
         selected_location = f"{selected_location}{selected_state}"
 
     # Row 3: Year and Top Facilities Selectors in the same row
@@ -89,7 +95,7 @@ with col1:
 
         # Filter the data by selected year
         df_filtered_year = df_filtered[df_filtered['REPORTING_YEAR'] == selected_year]
-    
+
     with col_top:
         # Dropdown for Top XX facilities
         top_facilities = [5, 10, 25, 50, 100]
@@ -175,14 +181,14 @@ with col3:
     if not df_top.empty:
         # Round ANNUAL_EMISSION to 1 decimal point and add commas
         df_top['ANNUAL_EMISSION'] = df_top['ANNUAL_EMISSION'].map(lambda x: f"{x:,.1f}")
-        
+
         # Add the top 3 pollutants as a column list
         df_top['Top Pollutants'] = df_top['REGISTRY_ID'].apply(
             lambda x: df[(df['REGISTRY_ID'] == x) & (df['PGM_SYS_ACRNM'] == selected_program)]['POLLUTANT_NAME'].head(3).tolist()
         )
 
         df_display = df_top[['PRIMARY_NAME', 'ANNUAL_EMISSION', 'CITY_NAME', 'STATE_CODE', 'Top Pollutants']]
-        
+
         st.subheader(f"Top {selected_top} Facilities for {selected_year} in {selected_location} ({unit_of_measure})")
         st.dataframe(df_display.style.hide(axis="index"))
     else:
@@ -231,7 +237,7 @@ with col5:
 
 with col6:
     st.subheader("Emissions Distribution Curve")
- 
+
     # Plot Lorenz curve
     plt.figure(figsize=(8, 6))
     plt.plot(cumulative_share, cumulative_values, label='Lorenz Curve')
