@@ -17,4 +17,4 @@ COPY . .
 
 ENTRYPOINT ["streamlit", "run"]
 
-CMD ["app.py"]
+CMD ["app.py", "--server.address=0.0.0.0", "--server.port=8501"]
