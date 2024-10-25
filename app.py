@@ -1,6 +1,7 @@
 """
 Streamlit demo app using EPA ECHO Air emissions data.
 """
+import sys
 import zipfile
 import pandas as pd
 import numpy as np
@@ -189,6 +190,10 @@ with col2:
     st.write(f"Total Reporting Facilities: {total_reporting_facilities}")
     st.write(f"Total Emissions for the Top {selected_top} Facilities: {top_emissions_total:,} {unit_of_measure}")
     st.write(f"Proportion of Total Emissions from Top {selected_top} Facilities: {proportion_from_top:.1f}%")
+
+    # Display the Python version
+    python_version = sys.version
+    st.write("Python Version:", python_version)
 
 # Top XX Facilities and Map
 col3, col4 = st.columns([1, 1])
