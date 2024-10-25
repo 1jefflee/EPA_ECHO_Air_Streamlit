@@ -1,5 +1,6 @@
 .DS_Store
 myenv/
+venv_python3_9
 __pycache__/
 .vscode
 
