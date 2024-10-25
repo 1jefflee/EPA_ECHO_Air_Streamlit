@@ -1,6 +1,9 @@
+"""
+Streamlit demo app using EPA ECHO Air emissions data.
+"""
+import zipfile
 import pandas as pd
 import numpy as np
-import zipfile
 import streamlit as st
 import pydeck as pdk
 import matplotlib.pyplot as plt
@@ -11,12 +14,12 @@ st.set_page_config(layout="wide")
 st.title("Echo Air Emissions Data")
 
 # Load filtered echo air emissions data
-zip_file_path = 'data/filtered_echo_data.zip'
-csv_file_name = 'filtered_echo_data.csv'  # Name of the CSV inside the zip
+ZIP_FILE_PATH = 'data/filtered_echo_data.zip'
+CSV_FILE_PATH = 'filtered_echo_data.csv'  # Name of the CSV inside the zip
 
 # Open the zip file and load the CSV
-with zipfile.ZipFile(zip_file_path, 'r') as z:
-    with z.open(csv_file_name) as f:
+with zipfile.ZipFile(ZIP_FILE_PATH, 'r') as z:
+    with z.open(CSV_FILE_PATH) as f:
         df = pd.read_csv(f, low_memory=False)
 
 # Clean up the data
@@ -25,7 +28,8 @@ df['REGISTRY_ID'] = df['REGISTRY_ID'].astype(str)
 df['REPORTING_YEAR'] = df['REPORTING_YEAR'].astype(str)
 df = df.where(pd.notnull(df), None)
 df['ANNUAL_EMISSION'] = pd.to_numeric(df['ANNUAL_EMISSION'], errors='coerce')
-df[['REGISTRY_ID', 'FIPS_CODE', 'EPA_REGION_CODE', 'POSTAL_CODE']] = df[['REGISTRY_ID', 'FIPS_CODE', 'EPA_REGION_CODE', 'POSTAL_CODE']].astype(str)
+df[['REGISTRY_ID', 'FIPS_CODE', 'EPA_REGION_CODE', 'POSTAL_CODE']] = \
+    df[['REGISTRY_ID', 'FIPS_CODE', 'EPA_REGION_CODE', 'POSTAL_CODE']].astype(str)
 
 # Data Selectors and Annual Emissions Information
 col1, col2 = st.columns([1, 1])
@@ -37,7 +41,8 @@ with col1:
     col_prog, col_pollutant = st.columns(2)
     with col_prog:
         available_programs = df['PGM_SYS_ACRNM'].unique()
-        default_program_index = list(available_programs).index('E-GGRT') if 'E-GGRT' in available_programs else 0
+        default_program_index = list(available_programs).index('E-GGRT') \
+            if 'E-GGRT' in available_programs else 0
         selected_program = st.selectbox('Select Program', sorted(available_programs), index=default_program_index)
 
         df_filtered = df[df['PGM_SYS_ACRNM'] == selected_program]
@@ -48,7 +53,9 @@ with col1:
         selected_pollutant = st.selectbox('Select Pollutant Name', pollutant_options)
 
         # Filter data by pollutant
-        df_filtered = df_filtered if selected_pollutant == 'All' else df_filtered[df_filtered['POLLUTANT_NAME'] == selected_pollutant]
+        df_filtered = df_filtered \
+            if selected_pollutant == 'All' \
+            else df_filtered[df_filtered['POLLUTANT_NAME'] == selected_pollutant]
         unit_of_measure = df_filtered['UNIT_OF_MEASURE'].iloc[0]
 
     # Row 2: State and City Selectors in the same row
@@ -61,7 +68,9 @@ with col1:
         selected_state = st.selectbox('Select State Code', state_options, index=state_options.index('TX'))
 
        # Filter data by state or "Continental US"
-        df_filtered = df_filtered[df_filtered['STATE_CODE'].isin(continental_states)] if selected_state == 'Continental US' else df_filtered[df_filtered['STATE_CODE'] == selected_state]
+        df_filtered = df_filtered[df_filtered['STATE_CODE'].isin(continental_states)] \
+            if selected_state == 'Continental US' \
+            else df_filtered[df_filtered['STATE_CODE'] == selected_state]
 
     with col_city:
         # Check if a specific state is selected and not "Continental US"
@@ -79,13 +88,13 @@ with col1:
         df_filtered = df_filtered if selected_city == 'All' else df_filtered[df_filtered['CITY_NAME'] == selected_city]
 
         # Create display name for selected city and state
-        selected_location = None
+        SELECTED_LOCATION = None
         if selected_city != 'All':
-            selected_location = f"{selected_city}, "
+            SELECTED_LOCATION = f"{selected_city}, "
         else:
-            selected_location = ''
+            SELECTED_LOCATION = ''
 
-        selected_location = f"{selected_location}{selected_state}"
+        SELECTED_LOCATION = f"{SELECTED_LOCATION}{selected_state}"
 
     # Row 3: Year and Top Facilities Selectors in the same row
     col_year, col_top = st.columns(2)
@@ -103,7 +112,8 @@ with col1:
 
     # Group by key columns and sum emissions for the selected year
     df_grouped = df_filtered_year.groupby(
-        ['REPORTING_YEAR', 'REGISTRY_ID', 'UNIT_OF_MEASURE', 'PRIMARY_NAME', 'CITY_NAME', 'STATE_CODE', 'POSTAL_CODE', 'LATITUDE83', 'LONGITUDE83']
+        ['REPORTING_YEAR', 'REGISTRY_ID', 'UNIT_OF_MEASURE', 'PRIMARY_NAME', 'CITY_NAME', \
+         'STATE_CODE', 'POSTAL_CODE', 'LATITUDE83', 'LONGITUDE83']
     ).agg({'ANNUAL_EMISSION': 'sum'}).reset_index()
 
     # Sort by annual emissions and get top XX facilities
@@ -117,9 +127,11 @@ with col1:
     top_emissions_total = df_top['ANNUAL_EMISSION'].sum().round(1)
 
     # Calculate the percentage of top XX emissions relative to total state emissions for the selected year
-    proportion_from_top = (top_emissions_total / total_state_emissions * 100).round(1) if total_state_emissions > 0 else 0
+    proportion_from_top = (top_emissions_total / total_state_emissions * 100).round(1) \
+        if total_state_emissions > 0 else 0
 
-    # Now rerun annual emissions by year for the original top XX facilities across all years, for the selected program and pollutant (if chosen)
+    # Now rerun annual emissions by year for the original top XX facilities across all years,
+    # for the selected program and pollutant (if chosen)
     if selected_pollutant == 'All':
         # If 'All' pollutants are selected, do not filter by pollutant
         df_top_all_years = df[(df['REGISTRY_ID'].isin(top_registry_ids)) & (df['PGM_SYS_ACRNM'] == selected_program)]
@@ -140,14 +152,15 @@ with col1:
     # Merge state totals with top XX facilities totals for a combined chart
     #suffix depending on city or state or US
     if selected_city != 'All':
-        suffix = f"_{selected_city}"
+        SUFFIX = f"_{selected_city}"
     elif selected_state != 'Continental US':
-        suffix = f"_{selected_state}"
+        SUFFIX = f"_{selected_state}"
     elif selected_state == 'Continental US':
-        suffix = "_US"
+        SUFFIX = "_US"
     else:
-        suffix = ''
-    df_combined = pd.merge(df_state_totals_by_year, df_top_emissions_by_year, on='REPORTING_YEAR', how='left', suffixes=(suffix, f'_Top{selected_top}'))
+        SUFFIX = ''
+    df_combined = pd.merge(df_state_totals_by_year, df_top_emissions_by_year, on='REPORTING_YEAR', \
+                           how='left', suffixes=(SUFFIX, f'_Top{selected_top}'))
     df_combined.fillna(0, inplace=True)
 
     # Ensure 'ANNUAL_EMISSION' is numeric and drop any NaN values for Lorenz Curve calculation
@@ -155,13 +168,15 @@ with col1:
     df_grouped_filtered = df_grouped[df_grouped['ANNUAL_EMISSION'] > 0].dropna(subset=['ANNUAL_EMISSION'])
     emissions_array = df_grouped_filtered['ANNUAL_EMISSION'].values
 
-    # Lorenz Curve calculation
     def lorenz_curve(x):
+        """
+        Lorenz Curve calculation.
+        """
         x = np.sort(x)
-        cumulative_values = np.cumsum(x) / np.sum(x)
-        cumulative_values = np.insert(cumulative_values, 0, 0)
-        cumulative_share = np.linspace(0, 1, len(cumulative_values))
-        return cumulative_share, cumulative_values
+        curve_values = np.cumsum(x) / np.sum(x)
+        curve_values = np.insert(curve_values, 0, 0)
+        curve_share = np.linspace(0, 1, len(curve_values))
+        return curve_share, curve_values
 
     cumulative_share, cumulative_values = lorenz_curve(emissions_array)
 
@@ -169,7 +184,8 @@ with col2:
     st.subheader("Summary Statistics")
 
     # Display Annual Emissions Information
-    st.write(f"Total Emissions for '{selected_location}' ({selected_year}): {total_state_emissions:,} {unit_of_measure}")
+    st.write(f"Total Emissions for '{SELECTED_LOCATION}' \
+             ({selected_year}): {total_state_emissions:,} {unit_of_measure}")
     st.write(f"Total Reporting Facilities: {total_reporting_facilities}")
     st.write(f"Total Emissions for the Top {selected_top} Facilities: {top_emissions_total:,} {unit_of_measure}")
     st.write(f"Proportion of Total Emissions from Top {selected_top} Facilities: {proportion_from_top:.1f}%")
@@ -184,15 +200,16 @@ with col3:
 
         # Add the top 3 pollutants as a column list
         df_top['Top Pollutants'] = df_top['REGISTRY_ID'].apply(
-            lambda x: df[(df['REGISTRY_ID'] == x) & (df['PGM_SYS_ACRNM'] == selected_program)]['POLLUTANT_NAME'].head(3).tolist()
+            lambda x: df[(df['REGISTRY_ID'] == x) & \
+                         (df['PGM_SYS_ACRNM'] == selected_program)]['POLLUTANT_NAME'].head(3).tolist()
         )
 
         df_display = df_top[['PRIMARY_NAME', 'ANNUAL_EMISSION', 'CITY_NAME', 'STATE_CODE', 'Top Pollutants']]
 
-        st.subheader(f"Top {selected_top} Facilities for {selected_year} in {selected_location} ({unit_of_measure})")
+        st.subheader(f"Top {selected_top} Facilities for {selected_year} in {SELECTED_LOCATION} ({unit_of_measure})")
         st.dataframe(df_display.style.hide(axis="index"))
     else:
-        st.warning(f"No data available for {selected_year} in {selected_location} for the {selected_program} program.")
+        st.warning(f"No data available for {selected_year} in {SELECTED_LOCATION} for the {selected_program} program.")
 
 with col4:
     st.subheader("Location of Top Facilities")
@@ -200,7 +217,7 @@ with col4:
     df_top['lat'] = pd.to_numeric(df_top['LATITUDE83'], errors='coerce')
     df_top['lon'] = pd.to_numeric(df_top['LONGITUDE83'], errors='coerce')
     df_top = df_top.dropna(subset=['lat', 'lon'])
-    zoom_level = 7 if df_top['lat'].std() < 1 and df_top['lon'].std() < 1 else 5
+    ZOOM_LEVEL = 7 if df_top['lat'].std() < 1 and df_top['lon'].std() < 1 else 5
 
     scatter_layer = pdk.Layer(
         "ScatterplotLayer",
@@ -213,14 +230,15 @@ with col4:
 
     # Add tooltips with the PRIMARY_NAME and CITY_NAME
     tooltip = {
-        "html": "<b>Facility:</b> {PRIMARY_NAME}<br/><b>City:</b> {CITY_NAME}, {STATE_CODE} {POSTAL_CODE}<br/><b>Registry ID:</b> {REGISTRY_ID}",
+        "html": "<b>Facility:</b> {PRIMARY_NAME}<br/><b>City:</b> \
+                 {CITY_NAME}, {STATE_CODE} {POSTAL_CODE}<br/><b>Registry ID:</b> {REGISTRY_ID}",
         "style": {
             "backgroundColor": "steelblue",
             "color": "white"
         }
     }
 
-    view_state = pdk.ViewState(latitude=df_top['lat'].mean(), longitude=df_top['lon'].mean(), zoom=zoom_level, pitch=0)
+    view_state = pdk.ViewState(latitude=df_top['lat'].mean(), longitude=df_top['lon'].mean(), zoom=ZOOM_LEVEL, pitch=0)
     deck = pdk.Deck(layers=[scatter_layer], initial_view_state=view_state, tooltip=tooltip)
     st.pydeck_chart(deck)
 
@@ -229,11 +247,11 @@ col5, col6 = st.columns([1, 1])
 
 with col5:
     if not df_combined.empty:
-        st.subheader(f"Annual Emissions ({unit_of_measure}): {selected_location} vs Top {selected_top} Facilities")
+        st.subheader(f"Annual Emissions ({unit_of_measure}): {SELECTED_LOCATION} vs Top {selected_top} Facilities")
         st.line_chart(df_combined.set_index('REPORTING_YEAR'))
 
     else:
-        st.warning(f"No emission data found for {selected_location}.")
+        st.warning(f"No emission data found for {SELECTED_LOCATION}.")
 
 with col6:
     st.subheader("Emissions Distribution Curve")

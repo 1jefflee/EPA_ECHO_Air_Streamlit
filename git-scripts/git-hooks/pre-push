@@ -1,0 +1,30 @@
+#!/bin/bash
+echo "Running pylint with max line length of 120..."
+
+# Run pylint on all Python files, excluding any in venv directories and capture the output
+pylint_output=$(pylint --max-line-length=120 $(find . -name "*.py" -not -path "./venv*/*"))
+
+# Extract the pylint score from the output
+pylint_score=$(echo "$pylint_output" | grep "Your code has been rated at" | awk '{print $7}' | cut -d'/' -f1)
+
+# Check if the pylint score is above 9
+if (( $(echo "$pylint_score >= 9" | bc -l) )); then
+    echo "Pylint check passed with score: $pylint_score"
+    exit 0
+else
+    echo "$pylint_output"
+    echo "Pylint score is below 9 ($pylint_score). Push will continue, but consider improving code quality."
+fi
+
+echo "Running unit tests in the tests/ folder..."
+
+# Run unit tests and capture the exit code
+python -m unittest discover -s tests -p "*.py"
+test_exit_code=$?
+
+# Check if unit tests passed
+if [[ $test_exit_code -ne 0 ]]; then
+    echo "Some unit tests failed. Push will continue, but please review test results."
+else
+    echo "All unit tests passed."
+fi
