@@ -6,6 +6,7 @@ Air Emissions data, ensuring that required columns and data
 structure are present.
 """
 
+import os
 import zipfile
 import unittest
 import pandas as pd
@@ -23,7 +24,8 @@ class TestStreamlitApp(unittest.TestCase):
         into a DataFrame for use in tests.
         """
         # Setup code for the tests
-        self.zip_file_path = '../data/filtered_echo_data.zip'
+        #self.zip_file_path = '../data/filtered_echo_data.zip'
+        self.zip_file_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../data/filtered_echo_data.zip'))
         self.csv_file_name = 'filtered_echo_data.csv'
         self.df = None
 
