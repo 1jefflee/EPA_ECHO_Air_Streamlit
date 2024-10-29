@@ -3,7 +3,7 @@ version: 0.2
 phases:
   install:
     runtime-versions:
-      python: 3.11  # Specify your Python version (e.g., 3.8, 3.9, etc.)
+      python: 3.x  # Specify your Python version (e.g., 3.8, 3.9, etc.)
     commands:
       - echo "Installing dependencies..."
       - pip install -r requirements.txt  # Adjust if you don't have a requirements file
@@ -11,14 +11,13 @@ phases:
   pre_build:
     commands:
       - echo "Running Python syntax check..."
-      - python -m compileall -x 'venv|lib' . 2>&1 | tee syntax_check.log  # Syntax check with verbose logging
+      - python -m compileall -q -x 'venv|lib' . 2>&1 | tee syntax_check.log  # Syntax check with verbose logging, quiet mode to suppress listings
       - if [ ${PIPESTATUS[0]} -ne 0 ]; then echo "Syntax check failed in the following files:"; cat syntax_check.log; exit 1; fi  # Fail build if syntax check fails, print failures
 
   build:
     commands:
       - echo "Running unit tests..."
-      - python -m unittest discover -s tests -p "*.py" -v
-      - if [ $? -ne 0 ]; then echo "Unit tests failed"; exit 1; fi  # Fail build if unit tests fail
+      - python -m unittest discover -s tests -p "*.py" -v || (echo "Unit tests failed"; exit 1)  # Combine test and failure check on same line
 
 artifacts:
   files:
