@@ -3,10 +3,10 @@ version: 0.2
 phases:
   install:
     runtime-versions:
-      python: 3.x  # Specify your Python version (e.g., 3.8, 3.9, etc.)
+      python: 3.11
     commands:
       - echo "Installing dependencies..."
-      - pip install -r requirements.txt  # Adjust if you don't have a requirements file
+      - pip install -r requirements.txt
 
   pre_build:
     commands:
@@ -18,6 +18,17 @@ phases:
     commands:
       - echo "Running unit tests..."
       - python -m unittest discover -s tests -p "*.py" -v || (echo "Unit tests failed"; exit 1)  # Combine test and failure check on same line
+      - echo "Building epa_streamlit Docker image..."
+      - docker build -t epa_streamlit .
+
+  post_build:
+    commands:
+      - echo "Logging in to Amazon ECR..."
+      - aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 975050083327.dkr.ecr.us-east-1.amazonaws.com
+      - echo "Tagging ECR image..."
+      - docker tag epa_streamlit:latest 975050083327.dkr.ecr.us-east-1.amazonaws.com/epa_streamlit:latest
+      - echo "Pushing Docker image to ECR..."
+      - docker push 975050083327.dkr.ecr.us-east-1.amazonaws.com/epa_streamlit:latest
 
 artifacts:
   files:
