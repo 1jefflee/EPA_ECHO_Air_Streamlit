@@ -5,6 +5,20 @@ phases:
     runtime-versions:
       python: 3.11
     commands:
+      - echo "Checking for required environment variables..."
+      - if [ -z "$AWS_ACCOUNT_ID" ]; then echo "Error: AWS_ACCOUNT_ID is not set. Go to CodeBuild Console -> Build Project -> <project> > Edit -> Additional Configuration Environment to add the environmental variable"; exit 1; fi
+      - if [ -z "$AWS_REGION" ]; then echo "Error: AWS_REGION is not set. Go to CodeBuild Console -> Build Project -> <project> > Edit -> Additional Configuration Environment to add the environmental variable"; exit 1; fi
+      - if [ -z "$ECR_REPO_NAME" ]; then echo "Error: ECR_REPO_NAME is not set. Go to CodeBuild Console -> Build Project -> <project> > Edit -> Additional Configuration Environment to add the environmental variable"; exit 1; fi
+
+      - echo "Logging in to Amazon ECR..."
+      - aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
+
+      - echo "Checking if ECR repository ${ECR_REPO_NAME} exists..."
+      - if ! aws ecr describe-repositories --repository-names "${ECR_REPO_NAME}" --region ${AWS_REGION} >/dev/null 2>&1; then
+          echo "Error: ECR repository ${ECR_REPO_NAME} does not exist in ${AWS_REGION}. Please create it or specify an existing repository.";
+          exit 1;
+        fi
+
       - echo "Installing dependencies..."
       - pip install -r requirements.txt
 
@@ -17,17 +31,15 @@ phases:
     commands:
       - echo "Running unit tests..."
       - python -m unittest discover -s tests -p "*.py" -v || (echo "Unit tests failed"; exit 1)
-      - echo "Building epa_streamlit Docker image..."
-      - docker build -t epa_streamlit .
+      - echo "Building ${ECR_REPO_NAME} Docker image..."
+      - docker build -t ${ECR_REPO_NAME} .
 
   post_build:
     commands:
-      - echo "Logging in to Amazon ECR..."
-      - aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 975050083327.dkr.ecr.us-east-1.amazonaws.com
       - echo "Tagging ECR image..."
-      - docker tag epa_streamlit:latest 975050083327.dkr.ecr.us-east-1.amazonaws.com/epa_streamlit:latest
+      - docker tag ${ECR_REPO_NAME}:latest ${AWS_ACCOUNT_ID}.dkr.ecr.us-east-1.amazonaws.com/${ECR_REPO_NAME}:latest
       - echo "Pushing Docker image to ECR..."
-      - docker push 975050083327.dkr.ecr.us-east-1.amazonaws.com/epa_streamlit:latest
+      - docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO_NAME}:latest
 
 artifacts:
   files:
