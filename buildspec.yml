@@ -6,9 +6,9 @@ phases:
       python: 3.11
     commands:
       - echo "Checking for required CodeBuild environment variables..."
-      - if [ -z "$AWS_ACCOUNT_ID" ]; then echo "Error: AWS_ACCOUNT_ID is not set. Go to CodeBuild Console -> Build Project -> <project> -> Edit -> Additional Configuration -> Environment to add the environmental variable"; exit 1; fi
-      - if [ -z "$AWS_REGION" ]; then echo "Error: AWS_REGION is not set. Go to CodeBuild Console -> Build Project -> <project> -> Edit -> Additional Configuration -> Environment to add the environmental variable"; exit 1; fi
-      - if [ -z "$ECR_REPO_NAME" ]; then echo "Error: ECR_REPO_NAME is not set. Go to CodeBuild Console -> Build Project -> <project> -> Edit -> Additional Configuration -> Environment to add the environmental variable"; exit 1; fi
+      - if [ -z "$AWS_ACCOUNT_ID" ]; then echo "Error: AWS_ACCOUNT_ID is not set. Go to CodeBuild Console -> Build Project -> <project> -> Edit -> Additional Configuration -> Environment to add the environmental variable" && exit 1; fi
+      - if [ -z "$AWS_REGION" ]; then echo "Error: AWS_REGION is not set. Go to CodeBuild Console -> Build Project -> <project> -> Edit -> Additional Configuration -> Environment to add the environmental variable" && exit 1; fi
+      - if [ -z "$ECR_REPO_NAME" ]; then echo "Error: ECR_REPO_NAME is not set. Go to CodeBuild Console -> Build Project -> <project> -> Edit -> Additional Configuration -> Environment to add the environmental variable" && exit 1; fi
       - echo "Logging in to Amazon ECR..."
       - aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
       - echo "Installing dependencies..."
@@ -18,12 +18,12 @@ phases:
     commands:
       - echo "Running Python syntax check..."
       - python -m compileall -q -x 'venv|lib' . 2>&1 | tee syntax_check.log
-      - if [ ${PIPESTATUS[0]} -ne 0 ]; then echo "Syntax check failed in the following files:"; cat syntax_check.log; exit 1; fi
+      - if [ ${PIPESTATUS[0]} -ne 0 ]; then echo "Syntax check failed in the following files:" && cat syntax_check.log && exit 1; fi
 
   build:
     commands:
       - echo "Running unit tests..."
-      - python -m unittest discover -s tests -p "*.py" -v || (echo "Unit tests failed"; exit 1)
+      - python -m unittest discover -s tests -p "*.py" -v || (echo "Unit tests failed" && exit 1)
       - echo "Building ${ECR_REPO_NAME} Docker image..."
       - docker build -t ${ECR_REPO_NAME} .
 
