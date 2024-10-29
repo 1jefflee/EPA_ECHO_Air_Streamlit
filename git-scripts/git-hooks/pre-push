@@ -28,3 +28,15 @@ if [[ $test_exit_code -ne 0 ]]; then
 else
     echo "All unit tests passed."
 fi
+
+# Run yamllint on all YAML files and capture any output
+yamllint_output=$(yamllint $(find . -name "*.yml" -o -name "*.yaml"))
+
+# Check if yamllint found any issues
+if [[ $? -ne 0 ]]; then
+    echo "YAML syntax errors detected:"
+    echo "$yamllint_output"
+    exit 1  # Exit with error if YAML syntax check fails
+else
+    echo "All YAML files passed syntax check."
+fi
