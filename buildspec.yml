@@ -9,13 +9,8 @@ phases:
       - if [ -z "$AWS_ACCOUNT_ID" ]; then echo "Error: AWS_ACCOUNT_ID is not set. Go to CodeBuild Console -> Build Project -> <project> -> Edit -> Additional Configuration -> Environment to add the environmental variable"; exit 1; fi
       - if [ -z "$AWS_REGION" ]; then echo "Error: AWS_REGION is not set. Go to CodeBuild Console -> Build Project -> <project> -> Edit -> Additional Configuration -> Environment to add the environmental variable"; exit 1; fi
       - if [ -z "$ECR_REPO_NAME" ]; then echo "Error: ECR_REPO_NAME is not set. Go to CodeBuild Console -> Build Project -> <project> -> Edit -> Additional Configuration -> Environment to add the environmental variable"; exit 1; fi
-
       - echo "Logging in to Amazon ECR..."
       - aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
-
-      #- echo "Checking if ECR repository ${ECR_REPO_NAME} exists..."
-      #- if ! aws ecr describe-repositories --repository-names "${ECR_REPO_NAME}" --region ${AWS_REGION} >/dev/null 2>&1; then echo "Error: ECR repository ${ECR_REPO_NAME} does not exist in ${AWS_REGION}. Please create it or specify an existing repository."; exit 1; fi
-
       - echo "Installing dependencies..."
       - pip install -r requirements.txt
 
