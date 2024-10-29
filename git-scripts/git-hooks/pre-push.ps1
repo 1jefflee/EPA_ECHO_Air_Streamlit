@@ -1,5 +1,5 @@
 #PowerShell script for git hook for push checks
- 
+
 # Navigate to the root of the Git repository
 $repoRoot = (git rev-parse --show-toplevel)
 Set-Location -Path $repoRoot
@@ -31,4 +31,20 @@ if ($testExitCode -ne 0) {
     Write-Output "Some unit tests failed. Push will continue, but please review test results."
 } else {
     Write-Output "All unit tests passed."
+}
+
+Write-Output "Checking YAML syntax..."
+
+# Run yamllint on all YAML files and capture any output
+$yamlFiles = Get-ChildItem -Recurse -Filter *.yml,*.yaml
+$yamlLintOutput = & yamllint $yamlFiles 2>&1
+$yamlLintExitCode = $LASTEXITCODE
+
+# Check if yamllint found any issues
+if ($yamlLintExitCode -ne 0) {
+    Write-Output "YAML syntax errors detected:"
+    Write-Output $yamlLintOutput
+    exit 1  # Exit with error if YAML syntax check fails
+} else {
+    Write-Output "All YAML files passed syntax check."
 }
