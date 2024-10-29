@@ -5,10 +5,10 @@ phases:
     runtime-versions:
       python: 3.11
     commands:
-      - echo "Checking for required environment variables..."
-      - if [ -z "$AWS_ACCOUNT_ID" ]; then echo "Error: AWS_ACCOUNT_ID is not set. Go to CodeBuild Console -> Build Project -> <project> > Edit -> Additional Configuration Environment to add the environmental variable"; exit 1; fi
-      - if [ -z "$AWS_REGION" ]; then echo "Error: AWS_REGION is not set. Go to CodeBuild Console -> Build Project -> <project> > Edit -> Additional Configuration Environment to add the environmental variable"; exit 1; fi
-      - if [ -z "$ECR_REPO_NAME" ]; then echo "Error: ECR_REPO_NAME is not set. Go to CodeBuild Console -> Build Project -> <project> > Edit -> Additional Configuration Environment to add the environmental variable"; exit 1; fi
+      - echo "Checking for required CodeBuild environment variables..."
+      - if [ -z "$AWS_ACCOUNT_ID" ]; then echo "Error: AWS_ACCOUNT_ID is not set. Go to CodeBuild Console -> Build Project -> <project> -> Edit -> Additional Configuration -> Environment to add the environmental variable"; exit 1; fi
+      - if [ -z "$AWS_REGION" ]; then echo "Error: AWS_REGION is not set. Go to CodeBuild Console -> Build Project -> <project> -> Edit -> Additional Configuration -> Environment to add the environmental variable"; exit 1; fi
+      - if [ -z "$ECR_REPO_NAME" ]; then echo "Error: ECR_REPO_NAME is not set. Go to CodeBuild Console -> Build Project -> <project> -> Edit -> Additional Configuration -> Environment to add the environmental variable"; exit 1; fi
 
       - echo "Logging in to Amazon ECR..."
       - aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
@@ -27,6 +27,7 @@ phases:
       - echo "Running Python syntax check..."
       - python -m compileall -q -x 'venv|lib' . 2>&1 | tee syntax_check.log
       - if [ ${PIPESTATUS[0]} -ne 0 ]; then echo "Syntax check failed in the following files:"; cat syntax_check.log; exit 1; fi
+
   build:
     commands:
       - echo "Running unit tests..."
@@ -37,7 +38,7 @@ phases:
   post_build:
     commands:
       - echo "Tagging ECR image..."
-      - docker tag ${ECR_REPO_NAME}:latest ${AWS_ACCOUNT_ID}.dkr.ecr.us-east-1.amazonaws.com/${ECR_REPO_NAME}:latest
+      - docker tag ${ECR_REPO_NAME}:latest ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO_NAME}:latest
       - echo "Pushing Docker image to ECR..."
       - docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO_NAME}:latest
 
