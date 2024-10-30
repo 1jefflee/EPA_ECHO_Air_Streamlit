@@ -1,6 +1,6 @@
 version: 0.2
 
-# Set the following environmental variables in your CodeBuild project: AWS_ACCOUNT_ID, AWS_REGION, ECR_REPO_NAME
+# Set the following environmental variables in your CodeBuild project: AWS_ACCOUNT_ID, AWS_REGION, ECR_REPO_NAME, ECS_TASKDEF_ARN
 # Go to CodeBuild Console -> Build Project -> <project> -> Edit -> Additional Configuration -> Environment to add the environmental variables
 phases:
   install:
@@ -9,6 +9,8 @@ phases:
     commands:
       - echo "Logging in to Amazon ECR..."
       - aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
+      - echo "Replacing TaskDefinition ARN in appspec.yml..."
+      - sed -i "s|__TASK_DEFINITION_ARN__|${ECS_TASKDEF_ARN}|g" appspec.yml
       - echo "Installing dependencies..."
       - pip install -r requirements.txt
 
@@ -31,8 +33,14 @@ phases:
       - docker tag ${ECR_REPO_NAME}:latest ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO_NAME}:latest
       - echo "Pushing Docker image to ECR..."
       - docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO_NAME}:latest
+      - echo "Creating imagedefinitions.json file..."
+      - printf '[{"name":"%s","imageUri":"%s"}]' "${ECR_REPO_NAME}" "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO_NAME}:latest" > imagedefinitions.json
+      - cat imagedefinitions.json
+      - echo "Build completed on $(date)."
 
 artifacts:
   files:
+    - appspec.yml
+    - imagedefinitions.json
     - "**/*"
   discard-paths: yes
