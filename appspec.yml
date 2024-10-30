@@ -1,0 +1,10 @@
+#CodeDeploy AppSpec file for ECS deployment
+version: 0.0
+Resources:
+  - TargetService:
+      Type: AWS::ECS::Service
+      Properties:
+        TaskDefinition: "__TASK_DEFINITION_ARN__" # Placeholder for Task definition ARN, replaced during CodeBuild
+        LoadBalancerInfo:
+          ContainerName: "epa_streamlit" # CodeBuild project and container name
+          ContainerPort: 8501 # Port the container listens on
